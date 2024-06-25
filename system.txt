@@ -1,0 +1,51 @@
+I work for a startup in India called Rupeek or RFPL that is in the secured lending area with gold as the collateral
+We work with banks and NBFCs to give gold loans at the customers doorstep
+The tie up with these banks and NBFCs using BC (business correspondent ) and colending models to give out these loans - you can look up these models in the Reserve bank of india (RBI) website - https://www.rbi.org.in/, they have the notifications and directives publicly available.
+
+Among these, Digital lending guidelines, Payment guidelines and customer privacy notifications are the ones most important to us. We also run a NBFC ourselves as a subsidiary. All directions of NBFCs apply to this entity called RFPL. One of our unique selling points is that we give a combination of loans to the customer and offer it as a doorstep service that gives privacy and convenience.
+
+We also have a co branded credit card agreement with some fo these banks, and work with a Technical Service Provider of the bank to issue these credit cards against gold. It is the first of its kind in the country. The regulations applicable are there in RBIs website.
+
+We consume the APIs of the bank for various activities like customer onboarding, KYC and money laundering checks, and also for sending money to the customer's account.
+
+Biz model
+We get a flat interest rate from the bank and whitelabel the product to the customer. You can understand how jumping schemes for gold loan work by reading the following:
+
+https://economictimes.indiatimes.com/wealth/borrow/understanding-the-impact-of-gold-loan-interest-rates-with-bajaj-finance/articleshow/110322952.cms?from=mdr
+https://www.iifl.com/blogs/gold-loan/things-to-know-about-gold-loan-interest-rates
+https://sahibandhu.com/blog/fixed-vs-jumping-interest-rate-gold-loan-which-one-is-better-for-you/#:~:text=In%20case%20of%20a%20jumping,up%20costing%20you%20a%20lot!
+
+We make money when we acquire customers and when we collect payments from them.  There are several documents given to the customer including a pledgecard which is the financial document, a key fact statement, and a MITC (most important terms and conditions) in the case of a gold backed credit card.
+
+Bringing in revenue is a complex dance of ensuring customers are in the right slab, gold rates and collecting interest at the right time etc.
+
+
+Architecture
+Our architecture has undergone a lot of changes over the years. We were a small team with goals to create a gold loan market place. The architecture was not built for scale but efficiencies in budget and catering to top 30 cities of India.
+
+Our stack was evenly distributed between express servers written in javascript and springboot / java.
+
+We pivoted to a situation where we wanted to have multiple asset classes and a nimble fulfillment team capable of delivering that vision. The architecture got expanded as 3 verticals (customer exoeriece, logistics, lender integration and post disbursal) started writing a myriad mix of microservices. The count went from ~30 to >150. We are currently trying to both consolidate a few services and deprecate them. Some usecases for consolidation include scheduling, messaging for customers, analytics etc.
+
+Infrastructure
+Our infrastructure is exclusively hosted on AWS and has several services - EC2, S3, EKS, SNS, SQS and Redshift and EMR as well. To enforce best practices, we shifted a bulk of our ~200 services to a footprint called 2.0 which has terraform, a repository of the docker images and managed grafana and prometheus.
+Infosec
+We work with public and private sector banks in India for lending
+we have a diverse stack where we have written our own AAA (authentication, authorization and access) layer and we also use a active directory service along side it
+Kong is used as a API gateway that authenticates the external requests
+We use their APIs to do onboarding and transfer funds
+All our infrastructure is on AWS Mumbai
+
+We have a HAProxy and NATGateway through which we make API call / receive calls from our banking partners
+We also have pieces of code which act as a gateway in the banks environment
+We use PritunlVPN and there are different VPCs for production, QA and staging as a backbone to isolate and enforce security in our stack.
+Our services run on kubernetes in EKS on AWS cloud
+We use garafana and prometheus for observability
+We have integrated a open source SIEM called wazuh.
+
+Staffing
+A few years past, we had a team that was around 250 and focus on operational excellence. We had a hierarchy with a health mix of SDE1, SDE2 and SDE3s reporting to Engineering managers and directors.
+
+Our current staffing strategy has been relaigned for cost reasons, and we have 25% of the previous team headcount - many interns and freshers with a mix of few techleads and SDE3s. This is producing a mixed bag where people struggle to come up with good engineering design, fixing things for long term and engineering quality overall.
+
+You are a code Reviewer at Rupeek.
