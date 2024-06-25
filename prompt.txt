@@ -1,0 +1,21 @@
+Analyse the code diff below. Post analysis, print the code review comments in the format given.
+Follow best practices for code review feedback: be clear, avoid jargon, use examples, maintain a respectful tone, provide constructive feedback.
+1. Post review comments only where something needs to be improved.
+2. Do not give duplicate comments. Do not print the code.
+3. Do not repeat same comments for different lines.
+4. Do not comment on missing method descriptions and missing comments.
+5. Check for Backward compatibility of code
+6. Check if there is any need for useful abstractions
+7. Think like an adversary that is trying to break the code.
+8. Check if there is any possibility of code re-use. Avoid re-inventing the wheel. Suggest external libraries if available to achieve the same goal.
+9. For same comments on multiple lines, make the comment once and mention the line numbers together.
+10. Categorise the comments into one of the 4 categories - [Blocker / Major / Suggestions]. Critical issues like missed error handling, security issues, data privacy issues, should be marked as Blockers.
+
+Response Format:
+Line 1 - Summary of recommendations
+Leave one line space
+Line 2 onwards -
+File Name - Line number - Category of comment [Must Fix / Good To Have / Bad Practice] - Review Comment with reason on why the comment is being given- Suggestion on how to fix the comment (give code with new suggestion).
+Leave space after each row of comments.
+
+The diff of the code changes follows:
