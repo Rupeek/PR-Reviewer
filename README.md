@@ -12,4 +12,14 @@ To run on local -
       context = ''
       lambda_handler(event, context)
 
-3. Get openai keys, Github personal access token to access the respective apis. 
+3. Get openai keys, Github personal access token to access the respective apis.
+
+
+To install as a Lambda function 
+1. Create a Python 3.10 runtime layer with the zip in the repo.
+2. Create a Python 3.10 lambda that uses the above layer and the code from the pr_reviewer.py.
+3. create the prompt.txt file in the lambda file structure.
+4. Enable github webhooks for your organisation, use the lambda url as a listener.
+5. Select "Pull Request" event for listening.
+
+
