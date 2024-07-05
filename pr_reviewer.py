@@ -1,13 +1,16 @@
+import hashlib
 import os
 import json
 import requests
+import ast
+import hmac
 from openai import OpenAI
-
 
 # Configuration from environment variables
 TOKEN = os.getenv('TOKEN', '<github PAT>')
 REPO_OWNER = os.getenv('REPO_OWNER', 'Rupeek')
 TOKEN_OPENAI = os.getenv('TOKEN_OPENAI', '<Openai key>')
+WEBHOOK_SECRET = 'secret'
 
 openai_client = OpenAI(
     organization='org-8HnXwbIJshIXURi2kHdzNmqI',
@@ -53,14 +56,52 @@ def get_pull_request_files(pr_number, repo_name):
     response = requests.get(url, headers=get_headers())
     return response.json()
 
+def verify_signature(payload, signature, secret):
+    """Verify GitHub webhook signature."""
+    mac = hmac.new(secret.encode(), msg=payload, digestmod=hashlib.sha256)
+    expected_signature = 'sha256=' + mac.hexdigest()
+    #print(expected_signature)
+    #print(signature)
+    return hmac.compare_digest(expected_signature, signature)
+
+
+def authenticate_request(event, context):
+    #print(event)
+    authenticated = True
+    response = ''
+    headers = event['headers']
+    signature = headers.get('x-hub-signature-256')
+    if signature is None:
+        authenticated = False
+        response = {
+            'statusCode': 400,
+            'body': 'Missing signature'
+        }
+
+    # Verify the payload with the secret
+    payload = event['body'].encode()
+    if not verify_signature(payload, signature, WEBHOOK_SECRET):
+        authenticated = False
+        response = {
+            'statusCode': 400,
+            'body': 'Invalid signature'
+        }
+
+    return authenticated, response
+
 
 def lambda_handler(event, context):
 
+    authenticated, response = authenticate_request(event, context)
+    if not authenticated:
+        return response
+    
     pr_number = ''
     repo_name = ''
     try:
         payload = json.loads(event['body'])
     except KeyError:
+        print(f'event is {event}')
         return {
             'statusCode': 400,
             'body': json.dumps('Invalid payload format')
@@ -111,7 +152,7 @@ def openai_review_comments(files, pr_number, repo_name):
 def generate_openai(context):
     # with open('system.txt', 'r') as file:
     #     system = file.read()
-    
+
     openai_response = ''
     stream = openai_client.chat.completions.create(
         model="gpt-4o",
@@ -124,3 +165,11 @@ def generate_openai(context):
             openai_response = openai_response + chunk.choices[0].delta.content
     #print(openai_response)
     return openai_response
+
+# if __name__ == '__main__':
+#     with open('event.txt', 'r') as file:
+#         event_text = file.read()
+
+#     event = ast.literal_eval(event_text)
+#     context = ''
+#     lambda_handler(event, context)
