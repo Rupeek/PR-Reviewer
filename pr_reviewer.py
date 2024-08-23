@@ -130,17 +130,41 @@ def lambda_handler(event, context):
         }
 
     files = get_pull_request_files(pr_number, repo_name)
+    # commit_id = fetch_commit_id(pr_number, repo_name)
+    # print(commit_id)
+    commit_id=payload['pull_request']['head']['sha']
     openai_review_concatenated = openai_review_comments(files, pr_number, repo_name)
-    # post_review_comment(body=openai_review_concatenated, pr_number=pr_number, repo_name=repo_name)
     for i, review_comment in enumerate(openai_review_concatenated):
         body = review_comment.get('body')
         path = review_comment.get('path')
+        start_line = review_comment.get('start_line')
+        line = review_comment.get('line')
+        start_side = review_comment.get('start_side')
+        side = review_comment.get('side')
+        diff_hunk = review_comment.get('diff_hunk')
         position = review_comment.get('position')
-        if body and path and position:
-            print("body: ",body)
-            print("path: ",path)
-            print("position: ",position)
-        post_review_comment_on_line(body, pr_number, repo_name, path, position)
+
+        # Validate that start_line precedes line
+        # if start_line is not None and line is not None and start_line >= line:
+        #     print(f"Invalid comment data: start_line ({start_line}) must be less than line ({line}).")
+        #     continue
+
+        if body and path and commit_id and start_line and line and start_side and side:
+            print("body: ", body)
+            print("path: ", path)
+            print("commit_id: ", commit_id)
+            # print("start_line: ", start_line)
+            # print("line: ", line)
+            # print("start_side: ", start_side)
+            print("side: ", side)
+            print("pr_number", pr_number)
+            print("repo_name", repo_name)
+            print("diff_hunk", diff_hunk)
+            print("position", position)
+            print("_______________")
+            if side == "RIGHT":
+                post_review_comment_on_line(pr_number, repo_name, path, body, commit_id,side, diff_hunk, position)
+
         # print(i,openai_review_concatenated[i].path)
         # print(i,openai_review_concatenated[i].position)
     # print("individual comment")
@@ -180,28 +204,63 @@ def generate_openai(context):
             "type": "function",
             "function": {
                 "name": "post_review_comment_on_line",
-                "description": "Post a review comment on a line in a file",
+                "description": "Post a review comment on a specific range of lines in a file within a commit.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "body": {
                             "type": "string",
-                            "description": "The body of the review comment"
-                        },
-                        "position": {
-                            "type": "integer",
-                            "description": "The line number in the file"
+                            "description": "The body text of the review comment to be posted."
                         },
                         "path": {
                             "type": "string",
-                            "description": "The path of the file"
+                            "description": "The path to the file in which the review comment will be posted."
+                        },
+                        "commit_id": {
+                            "type": "string",
+                            "description": "The ID of the commit that contains the modified file."
+                        },
+                        "start_line": {
+                            "type": "integer",
+                            "description": "The starting line number of the range in the file where the comment should be applied."
+                        },
+                        "line": {
+                            "type": "integer",
+                            "description": "The ending line number of the range in the file where the comment should be applied."
+                        },
+                        "start_side": {
+                            "type": "string",
+                            "description": "The side of the diff where the comment starts. LEFT for deleted lines and RIGHT for added lines.",
+                            "enum": ["LEFT", "RIGHT"]
+                        },
+                        "side": {
+                            "type": "string",
+                            "description": "The side of the diff where the comment ends. LEFT for deleted lines and RIGHT for added lines.",
+                            "enum": ["LEFT", "RIGHT"]
+                        },
+                        "diff_hunk": {
+                            "type": "string",
+                            "description": "The diff hunk of the comment."
+                        },
+                        "position": {
+                            "type": "integer",
+                            "description": "The line number in the file where the comment should be applied."
+                        },
+                        "in_reply_to": {
+                            "type": "string",
+                            "description": "The ID of the review comment to which the new comment should be a reply."
+                        },
+                        "subject_type": {
+                            "type": "string",
+                            "description": "The type of the subject of the review comment. Can be either 'REVIEW' or 'ISSUE'.",
                         }
                     },
-                    "required": ["path", "position", "body"]
+                    "required": ["path", "body", "commit_id", "start_line", "line", "start_side", "side", "diff_hunk", "position"]
                 }
             }
         }
     ]
+
 
     # Create a streaming completion request
     stream = openai_client.chat.completions.create(
@@ -212,9 +271,10 @@ def generate_openai(context):
         tools=tools,
         # stream=True  # Enable streaming
     )
-
+    # print("context",context)
     # Extract tool calls from the response
     choices = stream.choices
+    # print(choices)
     for choice in choices:
         if hasattr(choice.message, 'tool_calls'):
             for tool_call in choice.message.tool_calls:
@@ -227,16 +287,32 @@ def generate_openai(context):
                             # Extract the 'body' field
                             body = arguments_dict.get('body')
                             path = arguments_dict.get('path')
+                            commit_id = arguments_dict.get('commit_id')
+                            start_line = arguments_dict.get('start_line')
+                            line = arguments_dict.get('line')
+                            start_side = arguments_dict.get('start_side')
+                            side = arguments_dict.get('side')
+                            diff_hunk = arguments_dict.get('diff_hunk')
+
                             position = arguments_dict.get('position')
-
-
+                            in_reply_to = arguments_dict.get('in_reply_to')
+                            subject_type = arguments_dict.get('subject_type')
                             # print("Extracted body:", body)
                             # print('path,',path)
                             # print('position',position)
                             openai_response.append({
                                 "body":body,
                                 "path":path,
-                                "position":position
+                                "commit_id":commit_id,
+                                "start_line":start_line,
+                                "line":line,
+                                "start_side":start_side,
+                                "side":side,
+                                "diff_hunk":diff_hunk,
+
+                                "position":position,
+                                "in_reply_to":in_reply_to,
+                                "subject_type":subject_type
                             })
                         except json.JSONDecodeError as e:
                             print("Error decoding JSON:", e)
@@ -246,13 +322,42 @@ def generate_openai(context):
     return openai_response
 
 
-def post_review_comment_on_line(body, pr_number, repo_name, path, position):
+def fetch_commit_id(pr_number, repo_name):
+    url = f'https://api.github.com/repos/{REPO_OWNER}/{repo_name}/pulls/{pr_number}/commits'
+    response = requests.get(url, headers=get_headers())
+    data = response.text
+    # commit_id = data['head']['sha']
+    print("response", data)
+    return response
+
+
+
+def post_review_comment_on_line(pr_number, repo_name, path, body, commit_id, side, diff_hunk, position):
+    
+    # Validate that required fields are not None
+    if path is None or body is None or commit_id is None:
+        raise ValueError("Missing required fields.")
+
+    if side != "RIGHT":
+        print(f"Skipping comment on side {side} for path {path}.")
+        return None
+    
     url = f'https://api.github.com/repos/{REPO_OWNER}/{repo_name}/pulls/{pr_number}/comments'
     data = {
         "body": body,
         "path": path,
-        "position": position,
+        "commit_id": commit_id,
+        # "start_line": start_line,
+        # "line": line,
+        # "start_side": start_side,
+        "side": side,
+        "diff_hunk": diff_hunk,
+        "position": position
     }
+
+    # Remove keys with None values to avoid sending unnecessary fields
+    data = {k: v for k, v in data.items() if v is not None}
+
     response = requests.post(url, headers=get_headers(), data=json.dumps(data))
     print("posting completed")
     print(response.json())
@@ -260,11 +365,8 @@ def post_review_comment_on_line(body, pr_number, repo_name, path, position):
 
 
 
-
-
-
 if __name__ == '__main__':
-    with open('event.json', 'r') as fileVariable:
+    with open('sample_event.json', 'r') as fileVariable:
         event_text = json.load(fileVariable)
 
     # event = ast.literal_eval(event_text)
