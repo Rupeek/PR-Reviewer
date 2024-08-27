@@ -45,14 +45,14 @@ def get_context(patch):
 
 
 # Function to post a review comment on a pull request
-def post_review_comment(body, pr_number, repo_name):
-    url = f'https://api.github.com/repos/{REPO_OWNER}/{repo_name}/pulls/{pr_number}/reviews'
-    data = {
-        "body": body,
-        "event": "COMMENT"
-    }
-    response = requests.post(url, headers=get_headers(), data=json.dumps(data))
-    return response.json()
+# def post_review_comment(body, pr_number, repo_name):
+#     url = f'https://api.github.com/repos/{REPO_OWNER}/{repo_name}/pulls/{pr_number}/reviews'
+#     data = {
+#         "body": body,
+#         "event": "COMMENT"
+#     }
+#     response = requests.post(url, headers=get_headers(), data=json.dumps(data))
+#     return response.json()
 
 
 # Function to get the files changed in a specific pull request
@@ -97,9 +97,9 @@ def authenticate_request(event, context):
 
 def lambda_handler(event, context):
 
-    # authenticated, response = authenticate_request(event, context)
-    # if not authenticated:
-    #     return response
+    authenticated, response = authenticate_request(event, context)
+    if not authenticated:
+        return response
     
     pr_number = ''
     repo_name = ''
@@ -130,10 +130,22 @@ def lambda_handler(event, context):
         }
 
     files = get_pull_request_files(pr_number, repo_name)
-    # commit_id = fetch_commit_id(pr_number, repo_name)
-    # print(commit_id)
+    
     commit_id=payload['pull_request']['head']['sha']
     openai_review_concatenated = openai_review_comments(files, pr_number, repo_name)
+    post_line_level_comment(pr_number, repo_name, commit_id, openai_review_concatenated)
+
+        # print(i,openai_review_concatenated[i].path)
+        # print(i,openai_review_concatenated[i].position)
+    # print("individual comment")
+    # review_comments_on_lines(files)
+    # print(f'comment posted on #{pr_number} in repository {repo_name}')
+    return {
+        'statusCode': 200,
+        'body': json.dumps(f'comment posted on #{pr_number} in repository {repo_name}')
+    }
+
+def post_line_level_comment(pr_number, repo_name, commit_id, openai_review_concatenated):
     for i, review_comment in enumerate(openai_review_concatenated):
         body = review_comment.get('body')
         path = review_comment.get('path')
@@ -150,30 +162,20 @@ def lambda_handler(event, context):
         #     continue
 
         if body and path and commit_id and start_line and line and start_side and side:
-            print("body: ", body)
-            print("path: ", path)
-            print("commit_id: ", commit_id)
-            # print("start_line: ", start_line)
-            # print("line: ", line)
-            # print("start_side: ", start_side)
-            print("side: ", side)
-            print("pr_number", pr_number)
-            print("repo_name", repo_name)
-            print("diff_hunk", diff_hunk)
-            print("position", position)
-            print("_______________")
+            # print("body: ", body)
+            # print("path: ", path)
+            # print("commit_id: ", commit_id)
+            # # print("start_line: ", start_line)
+            # # print("line: ", line)
+            # # print("start_side: ", start_side)
+            # print("side: ", side)
+            # print("pr_number", pr_number)
+            # print("repo_name", repo_name)
+            # print("diff_hunk", diff_hunk)
+            # print("position", position)
+            # print("_______________")
             if side == "RIGHT":
                 post_review_comment_on_line(pr_number, repo_name, path, body, commit_id,side, diff_hunk, position)
-
-        # print(i,openai_review_concatenated[i].path)
-        # print(i,openai_review_concatenated[i].position)
-    # print("individual comment")
-    # review_comments_on_lines(files)
-    # print(f'comment posted on #{pr_number} in repository {repo_name}')
-    return {
-        'statusCode': 200,
-        'body': json.dumps(f'comment posted on #{pr_number} in repository {repo_name}')
-    }
 
 
 def openai_review_comments(files, pr_number, repo_name):
@@ -322,13 +324,6 @@ def generate_openai(context):
     return openai_response
 
 
-def fetch_commit_id(pr_number, repo_name):
-    url = f'https://api.github.com/repos/{REPO_OWNER}/{repo_name}/pulls/{pr_number}/commits'
-    response = requests.get(url, headers=get_headers())
-    data = response.text
-    # commit_id = data['head']['sha']
-    print("response", data)
-    return response
 
 
 
@@ -364,12 +359,11 @@ def post_review_comment_on_line(pr_number, repo_name, path, body, commit_id, sid
     return response.json()
 
 
+# if __name__ == '__main__':
+#     with open('sample_event.json', 'r') as fileVariable:
+#         event_text = json.load(fileVariable)
 
-if __name__ == '__main__':
-    with open('sample_event.json', 'r') as fileVariable:
-        event_text = json.load(fileVariable)
-
-    # event = ast.literal_eval(event_text)
-    # event = json.loads(event_text)
-    context = ''
-    lambda_handler(event_text, context)
+#     # event = ast.literal_eval(event_text)
+#     # event = json.loads(event_text)
+#     context = ''
+#     lambda_handler(event_text, context)
